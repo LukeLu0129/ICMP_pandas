@@ -2,7 +2,7 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 from datetime import datetime as dt
 from collections import defaultdict as dd
-from ICMP._utility import subDF_str_attr
+from ._utility import subDF_str_attr
 from pathlib import Path
 
 
@@ -13,10 +13,10 @@ class ArtfSeries(pd.Series):
         return ArtfSeries
     @property
     def _constructor_expanddim(self):
-        return ArtfDataFrame
+        return Artf_DataFrame
 
 
-class ArtfDataFrame(pd.DataFrame):
+class Artf_DataFrame(pd.DataFrame):
     '''subclass of pd.DataFrame that can be saved to artf file for ICM+'''
     @property
     def _ArtfDF_dict(self):
@@ -26,7 +26,7 @@ class ArtfDataFrame(pd.DataFrame):
     @property
     def _constructor(self):
         '''Overwrite internal method for compatibility'''
-        return ArtfDataFrame
+        return Artf_DataFrame
 
     @property
     def _constructor_sliced(self):
@@ -36,6 +36,7 @@ class ArtfDataFrame(pd.DataFrame):
     def __init__(self,*args, artf_source=None, ModifiedByDefault = 'ArtfDataFrame', default_signal = 'Global', **kwargs) -> None:
         '''
         takes csv file, artf file, dict, ArtSeries and pd.Series and pd.DataFrame with the essential keys transform into pd.DataFrame subclass that is capable of output artf file.
+        default_signal is only relavent when artf_source is a dict or list
 
         '''
         if isinstance(artf_source,(str,Path)): # check if artf_source is a file directory
@@ -76,6 +77,7 @@ class ArtfDataFrame(pd.DataFrame):
     
     @property
     def ModifiedByDefault(self):
+        '''Default value of ModifiedBy in the Artf file'''
         return str(self._ModifiedByDefault)
     
     @classmethod
@@ -175,6 +177,7 @@ class ArtfDataFrame(pd.DataFrame):
                 raise Exception(f'{input_type} is missing essential key/column "{essential_key}"')
 
     def to_df(self)-> pd.DataFrame:
+        '''return a DataFrame object'''
         return pd.DataFrame(self)
 
     @property
@@ -245,7 +248,10 @@ class ArtfDataFrame(pd.DataFrame):
     
     @property
     def strdf(self):
-        '''return ArtfDataFrame with all timestamp converted to appropriate str format'''
+        '''
+        return ArtfDataFrame with all timestamp converted to appropriate str format.
+        This is for compatible formatting when writing into artf file.
+        '''
         out_artf = self.copy()
         out_artf.ModifiedDate = out_artf.ModifiedDate.apply(lambda t:self.to_strftime(t,False))
         out_artf[['StartTime','EndTime']] = out_artf[['StartTime','EndTime']].applymap(lambda t:self.to_strftime(t))
