@@ -38,14 +38,30 @@ def get_file_path(file_dir):
         # print(f'{file_dir} cannot be converted to Path object')
         return None
 
-def get_file_list(folder_dir, file_type, export_path_obj = False, glob_regex = None):
-    '''get a list of file path'''
+def get_file_list(folder_dir, file_type = None, include_subfolders = False, export_txt_dir = None, export_path_obj = False, glob_regex = None):
+    '''
+    get a list of file path.
+    file_type and inlcude_subfolders are ignored when glob_regex is used.
+    export_txt_dir specify the directory of the txt file output. Please include full file name along with ".txt".
+    '''
+    if file_type is None and glob_regex is None:
+        return None
     if glob_regex is None:
         glob_regex = f'*{file_type}'
+        if include_subfolders:
+            glob_regex = "**/" + glob_regex
 
     out_list = list(Path(folder_dir).glob(glob_regex))
     if not export_path_obj:
         out_list = [str(i) for i in out_list]
+
+    if not export_txt_dir is None:
+        with open(export_txt_dir,'w') as output:
+            for file_dir in out_list:
+                output.write(str(file_dir)+'\n')
+        print(f"file saved to {export_txt_dir}")
+        return None
+
     return out_list
 
 ###====Human readable & serial datetime converter    
@@ -70,3 +86,6 @@ def DT2Ser(DT) -> float:
     ser = float(delta.days) + float(delta.seconds/(86400)+delta.microseconds/(86400*10**6))
     return ser     
 
+def filter_by_id(pd, id_list):
+        '''filter the dataframe by id_list'''
+        return pd.filter(items=id_list,axis=0)

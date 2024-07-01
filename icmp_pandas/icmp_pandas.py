@@ -10,15 +10,15 @@ def read_h5(*args, **kwargs):
 
 def read_Event(file_dir=None,*args, **kwargs):
     '''read file (hdf5, xml, csv) as a pd.DataFrame subclass called Event_DataFrame'''
-    return Event_DataFrame(file_dir = file_dir, *args, **kwargs)
+    return Event_DataFrame(file_dir, *args, **kwargs)
 
 
 def read_Trend(file_dir=None,*args, **kwargs):
     '''read file (hdf5, xml, csv) as a pd.DataFrame subclass called Trend_DataFrame'''
-    return Trend_DataFrame(file_dir = file_dir, *args, **kwargs)
+    return Trend_DataFrame(file_dir, *args, **kwargs)
 
 
 def read_Artf(artf_source=None, *args, **kwargs):
     '''read file (artf, xml) as a pd.DataFrame subclass called Artf_DataFrame'''
-    return Artf_DataFrame(artf_source = artf_source, *args, **kwargs)
+    return Artf_DataFrame(artf_source, *args, **kwargs)
 

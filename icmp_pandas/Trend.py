@@ -1,6 +1,6 @@
 import pandas as pd
 import h5py
-from ._utility import _Trend_h5dir, Ser2DT, DT2Ser,  get_file_path
+from ._utility import _Trend_h5dir, Ser2DT, DT2Ser, Path
 from .Episode import Episode_Dataframe
 
 def getTrendEpisodeDF(IsInEpisodeSeries:pd.Series, MAX_TIME_GAP='5min',MIN_EPISODE_DURATION='5min') -> pd.DataFrame:  
@@ -108,15 +108,12 @@ class Trend_DataFrame(pd.DataFrame):
         '''Overwrite internal method for compatibility'''
         return Trend_Series
 
-    def __init__(self,*args, file_dir:str=None, convert_dtidx = False, drop_index_col = False, dtidx_col_rename = {'datetime':'DateTime'}, **kwargs) -> None:
+    def __init__(self, data=None, convert_dtidx = False, drop_index_col = False, dtidx_col_rename = {'datetime':'DateTime'}, **kwargs) -> None:
         '''
         Accept directory of ICM+ generated event file in the following formats (csv, txt, xml, hdf5)        
         '''
-        if  get_file_path(file_dir) == None:
-            super().__init__(*args,**kwargs)
-
-        else:
-            TrendFile_dir = file_dir
+        if Path(data).is_file():
+            TrendFile_dir = data
             TrendFileType = TrendFile_dir.split("\\")[-1].split(".")[-1]
 
             if TrendFileType == 'hdf5':       
@@ -141,7 +138,10 @@ class Trend_DataFrame(pd.DataFrame):
             elif type(_TrendDF[dtidx_col][0]) == str:
                 _TrendDF[dtidx_col] = [pd.to_datetime(strDT, dayfirst=True) for strDT in _TrendDF['DateTime']]
             super().__init__(_TrendDF.set_index('DateTime',drop=drop_index_col),**kwargs)
-    
+        else:
+            super().__init__(data=data,**kwargs)
+        
+
     @staticmethod
     def remove_col_bracket(DF, delimiter = '['):
         '''rename column name by getting the str before a certain limiter e.g. sqaure bracket "[" '''

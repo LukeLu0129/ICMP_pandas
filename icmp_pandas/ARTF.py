@@ -2,7 +2,7 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 from datetime import datetime as dt
 from collections import defaultdict as dd
-from ._utility import subDF_str_attr
+from ._utility import subDF_str_attr, get_file_path
 from pathlib import Path
 
 
@@ -33,46 +33,43 @@ class Artf_DataFrame(pd.DataFrame):
         '''Overwrite internal method for compatibility'''
         return ArtfSeries
 
-    def __init__(self,*args, artf_source=None, ModifiedByDefault = 'ArtfDataFrame', default_signal = 'Global', **kwargs) -> None:
+    def __init__(self, data=None, ModifiedByDefault = 'ArtfDataFrame', signal_label = 'Global', **kwargs) -> None:
         '''
         takes csv file, artf file, dict, ArtSeries and pd.Series and pd.DataFrame with the essential keys transform into pd.DataFrame subclass that is capable of output artf file.
-        default_signal is only relavent when artf_source is a dict or list
+        signal_label is only relavent when artf_source is a dict or list
 
         '''
-        if isinstance(artf_source,(str,Path)): # check if artf_source is a file directory
-            dir = Path(artf_source)
-            if dir.is_file():
-                filetype = dir.name.split('.')[-1]
-                # read csv:
-                if filetype == 'csv':
-                    artf_df_arg = self._from_artf_csv(artf_source)
-                # read artf as xml
-                elif filetype == 'artf':
-                    artf_df_arg = self.convert_artf(artf_source)
-                else:
-                    raise Exception('artf_source must be a directory of csv or artf file')
+        artf_df_arg = None
+        if get_file_path(data) != None: # check if artf_source is a file directory
+            filetype = data.split('.')[-1]
+            # read csv:
+            if filetype == 'csv':
+                artf_df_arg = self._from_artf_csv(data)
+            # read artf as xml
+            elif filetype == 'artf':
+                artf_df_arg = self.convert_artf(data)
             else:
-                raise Exception('artf_source is not a valid file directory')
-        elif isinstance(artf_source,dict): 
+                raise Exception('artf_source must be a directory of csv or artf file')
+        elif isinstance(data,dict): 
             'take dictionary with "StartTime" and "EndTime" key and fill for signal_label, ModifiedBy and ModifiedDate.'
-            artf_df_arg = self._from_startstop_dict(startstop_dict=artf_source, ModifiedByDefault = ModifiedByDefault, default_signal=default_signal, **kwargs)
-        elif isinstance(artf_source,list):
-            artf_df_arg = self.from_startstop_dict(self.startstop_dict_from_dt_list(artf_source), ModifiedByDefault=ModifiedByDefault,default_signal=default_signal, **kwargs)
-        elif isinstance(artf_source,(pd.Series,ArtfSeries)):
-            artf_df_arg = artf_source.to_frame().transpose()
+            artf_df_arg = self._from_startstop_dict(startstop_dict=data, ModifiedByDefault = ModifiedByDefault, signal_label=signal_label, **kwargs)
+        elif isinstance(data,list):
+            artf_df_arg = self.from_startstop_dict(self.startstop_dict_from_dt_list(data, signal_label=signal_label, **kwargs), ModifiedByDefault=ModifiedByDefault,signal_label=signal_label)
+        elif isinstance(data,(pd.Series,ArtfSeries)):
+            artf_df_arg = data.to_frame().transpose()
             self._check_essential_key(artf_df_arg.columns, 'series_df')
-        elif isinstance(artf_source,pd.DataFrame):
-            artf_df_arg = artf_source
+        elif isinstance(data,pd.DataFrame):
+            artf_df_arg = data
             self._check_essential_key(artf_df_arg.columns, 'source_df')
-        elif artf_source == None:
+        elif data == None:
             artf_df_arg = pd.DataFrame.from_dict(self._ArtfDF_dict)
         else:
             return None
-        if list(args) != [] or kwargs.get('data',None) != None:
-            super().__init__(*args, **kwargs)
-        else:
+        if artf_df_arg != None:
             super().__init__(data=artf_df_arg, **kwargs)
-        del artf_df_arg
+        else:
+            super().__init__(data=data, **kwargs)
+
         self._ModifiedByDefault = subDF_str_attr(ModifiedByDefault)
     
     @property
@@ -82,7 +79,7 @@ class Artf_DataFrame(pd.DataFrame):
     
     @classmethod
     def from_artf(cls, artf_xml_dir,return_ET = False):
-        return cls(artf_source=cls().convert_artf(artf_xml_dir, return_ET = return_ET))
+        return cls(data=cls().convert_artf(artf_xml_dir, return_ET = return_ET))
 
     def read_artf(self,artf_xml_dir):
         '''read artf in xml format. same as open artf as txt in notepad'''
@@ -110,7 +107,7 @@ class Artf_DataFrame(pd.DataFrame):
 
     @classmethod
     def from_artf_csv(cls, artf_csv_dir):
-        return cls(artf_source=cls()._from_artf_csv(artf_csv_dir))
+        return cls(data=cls()._from_artf_csv(artf_csv_dir))
 
     def _from_artf_csv(self,artf_csv_dir) -> pd.DataFrame:
         '''Extract csv as dataframe and check is all essentail column is present.'''
@@ -120,7 +117,7 @@ class Artf_DataFrame(pd.DataFrame):
     
     @classmethod
     def from_dt_list(cls,dt_list,signal_label='Global', dt_interval = '10s',window_before='5s', window_after='5s',dayfirst=True, **kwargs):
-        return cls(artf_source=cls.startstop_dict_from_dt_list(dt_list,signal_label=signal_label, dt_interval = dt_interval, window_before=window_before, window_after=window_after,dayfirst=dayfirst), **kwargs)
+        return cls(data=cls.startstop_dict_from_dt_list(dt_list,signal_label=signal_label, dt_interval = dt_interval, window_before=window_before, window_after=window_after,dayfirst=dayfirst), **kwargs)
 
     @staticmethod
     def startstop_dict_from_dt_list(dt_list,signal_label, dt_interval = '10s',window_before='5s', window_after='5s',dayfirst=True):
@@ -132,7 +129,7 @@ class Artf_DataFrame(pd.DataFrame):
         window_before = pd.to_timedelta(window_before)
         dt_dict = {'signal_label':[],'StartTime':[], 'EndTime':[]}
         start_dt = dt_list[0]
-        current_dt = start_dt
+        current_dt = dt_list[0]
         last_dt = dt_list[-1]
         for next_dt in dt_list[1:]:
             if next_dt > current_dt+dt_interval:
@@ -148,10 +145,10 @@ class Artf_DataFrame(pd.DataFrame):
                 return dt_dict
 
     @classmethod
-    def from_startstop_dict(cls,startstop_dict, ModifiedByDefault = 'ArtfDataFrame', default_signal = 'Global', **kwargs):
-        return cls(artf_source=cls()._from_startstop_dict(startstop_dict=startstop_dict, ModifiedByDefault = ModifiedByDefault, default_signal = default_signal, **kwargs))
+    def from_startstop_dict(cls,startstop_dict, ModifiedByDefault = 'ArtfDataFrame', signal_label = 'Global', **kwargs):
+        return cls(data=cls()._from_startstop_dict(startstop_dict=startstop_dict, ModifiedByDefault = ModifiedByDefault, signal_label = signal_label, **kwargs))
 
-    def _from_startstop_dict(self,startstop_dict, ModifiedByDefault,default_signal, **kwargs):
+    def _from_startstop_dict(self,startstop_dict, ModifiedByDefault,signal_label, **kwargs):
         '''
         
         '''
@@ -161,7 +158,7 @@ class Artf_DataFrame(pd.DataFrame):
         else:
             value_len = 1
         if 'signal_label' not in startstop_dict.keys():
-            startstop_dict.update({'signal_label':[default_signal for _ in range(value_len)]})
+            startstop_dict.update({'signal_label':[signal_label for _ in range(value_len)]})
         if 'ModifiedBy' not in startstop_dict.keys():
             startstop_dict.update({'ModifiedBy':[ModifiedByDefault for _ in range(value_len)]})
         if 'ModifiedDate' not in startstop_dict.keys():

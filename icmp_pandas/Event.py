@@ -27,29 +27,33 @@ class Event_DataFrame(pd.DataFrame):
         '''Overwrite internal method for compatibility'''
         return Event_Series
 
-    def __init__(self,*args,file_dir:str=None, **kwargs):
+    def __init__(self, data=None, **kwargs):
         '''
         Accept directory of ICM+ generated event file in the following formats (csv, txt, xml, hdf5). Return empty DataFrame if file path is invalid.        
         '''
-        if  get_file_path(file_dir) == None:
-            super().__init__(*args, **kwargs)
-        else:
-            patientFileName = file_dir.split('\\')[-1].split('_event')[0]
-            file_type = file_dir.split('.')[-1]
+        if get_file_path(data) != None:
+            dir_str = data
+            patientFileName = dir_str.split('\\')[-1].split('_event')[0]
+            file_type = dir_str.split('.')[-1]
             if file_type == 'csv':
-                event_df = pd.read_csv(file_dir,delimiter=r',(?![^\[]*[\]])', engine="python")
+                event_df = pd.read_csv(dir_str,delimiter=r',(?![^\[]*[\]])', engine="python")
             elif file_type == 'txt':
-                event_df = pd.read_table(file_dir,delimiter='\t')
+                event_df = pd.read_table(dir_str,delimiter='\t')
             elif file_type == 'xml':
-                xroot = ET.parse(file_dir).getroot()
+                xroot = ET.parse(dir_str).getroot()
                 event_df = self._EventXML2Dataframe(xroot,patientFileName)
             elif file_type == 'hdf5':
-                H5file = h5py.File(file_dir, 'r')
+                H5file = h5py.File(dir_str, 'r')
                 H5EventXML_string_in_bytes = H5file.get(_ICMPEvent_h5dir)[()][0]
                 xroot = ET.fromstring(H5EventXML_string_in_bytes)
                 event_df = self._EventXML2Dataframe(xroot,patientFileName)
                 H5file.close()
-            super().__init__(event_df)
+            else:
+                raise FileNotFoundError(f'{data} is not a directory of value file type (csv, txt, xml, hdf5)')
+            super().__init__(event_df, **kwargs)
+        else:
+            super().__init__(data=data, **kwargs)
+        
 
     def _EventXML2Dataframe(self,xroot,DataSource):
             '''

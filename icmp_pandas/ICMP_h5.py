@@ -122,6 +122,12 @@ class ICMP_h5py(h5py.File):
         self.visit(lambda x: out_lst.append(x.split('/')[1]) if (f"{parent_group}/" in x) and ("." not in x) else None)
         return out_lst
     
+    def dataset_list(self):
+        '''output a list of dataset in hdf5 file'''
+        keys = []
+        self.visit(lambda key : keys.append(key) if isinstance(self[key], h5py.Dataset) else None)
+        return keys
+
     @property
     def waves_label(self):
         '''output all labels in waves as list'''
